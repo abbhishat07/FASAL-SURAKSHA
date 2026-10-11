@@ -12,6 +12,8 @@ import cv2
 import numpy as np
 import streamlit as st
 from PIL import Image
+from datetime import datetime
+from typing import Any, Optional
 try:
     from gtts import gTTS
 except (ImportError, ModuleNotFoundError):
@@ -52,9 +54,10 @@ def load_project_logo():
     Loads the official FASAL SURAKSHA logo from the exact file name.
     Returns (base64_str, PIL.Image object, is_loaded_bool).
     """
+    logo_dir = os.path.dirname(os.path.abspath(globals()["__file__"])) if "__file__" in globals() else "."
     search_paths = [
         LOGO_FILENAME,
-        os.path.join(os.path.dirname(__file__), LOGO_FILENAME),
+        os.path.join(logo_dir, LOGO_FILENAME),
         os.path.join(".", LOGO_FILENAME)
     ]
     for path in search_paths:
