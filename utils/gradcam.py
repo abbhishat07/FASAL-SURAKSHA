@@ -19,7 +19,11 @@ except ImportError:
     ort = None  # onnxruntime not installed; ONNXInference will raise a clear error at init time
 from torchvision import models, transforms
 from typing import Optional, Tuple
-from loguru import logger
+try:
+    from loguru import logger
+except (ImportError, ModuleNotFoundError):
+    import logging
+    logger = logging.getLogger("fasal_suraksha")
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD  = [0.229, 0.224, 0.225]

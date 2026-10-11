@@ -9,7 +9,11 @@ Disease Severity Index (DSI) computation.
 import cv2
 import numpy as np
 from typing import Tuple, Dict
-from loguru import logger
+try:
+    from loguru import logger
+except (ImportError, ModuleNotFoundError):
+    import logging
+    logger = logging.getLogger("fasal_suraksha")
 
 # ─────────────────────────────────────────────
 # Severity thresholds (percent infected pixels)

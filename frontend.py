@@ -12,9 +12,11 @@ import cv2
 import numpy as np
 import streamlit as st
 from PIL import Image
-from datetime import datetime
-from gtts import gTTS
-from typing import Any, Optional
+try:
+    from gtts import gTTS
+except (ImportError, ModuleNotFoundError):
+    gTTS = None  # type: ignore
+
 import base64
 try:
     import plotly.graph_objects as go  # type: ignore

@@ -9,7 +9,11 @@ the computed Disease Severity Index (DSI).
 """
 
 from typing import Dict, Any, List
-from loguru import logger
+try:
+    from loguru import logger
+except (ImportError, ModuleNotFoundError):
+    import logging
+    logger = logging.getLogger("fasal_suraksha")
 
 # Disease Registry mapped with ICAR & Agronomic Guidelines
 DISEASE_REMEDY_DATABASE: Dict[str, Dict[str, Any]] = {

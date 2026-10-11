@@ -1,67 +1,15 @@
-# ============================================================
-# FASAL SURAKSHA (फसल सुरक्षा) - Production Requirements
-# Optimized for Streamlit Community Cloud & Micro-Edge Deployment
-# ============================================================
-
-# 1. Force CPU-Only PyTorch wheels (prevents multi-GB CUDA downloads & OOM crashes)
+streamlit
+fastapi
+uvicorn
+onnxruntime
+xgboost
+joblib
+pandas
+numpy
+pillow
+fpdf2
+python-multipart
 --extra-index-url https://download.pytorch.org/whl/cpu
-
-# --- Core Web Dashboard & Cloud Presentation ---
-streamlit>=1.39.0
-streamlit-webrtc>=0.47.9
-streamlit-aggrid>=1.0.5
-
-# --- Core API & Fast Microservices ---
-fastapi>=0.115.0
-uvicorn[standard]>=0.30.6
-python-multipart>=0.0.9
-httpx>=0.27.2
-
-# --- Deep Learning & Explainability (CPU Optimized) ---
 torch
 torchvision
-torchaudio
-grad-cam>=1.5.4
-
-# --- Edge Runtime & High-Performance Model Inference ---
-onnx>=1.16.2
-onnxruntime>=1.19.2
-tflite-runtime
-
-# --- Computer Vision & Image Processing (Headless - No X11/GL required) ---
-opencv-python-headless>=4.10.0.84
-Pillow>=10.4.0
-scipy>=1.14.1
-
-# --- Agronomic Machine Learning & Tabular Forecasting ---
-numpy>=1.26.4
-pandas>=2.2.3
-scikit-learn>=1.5.2
-xgboost>=2.1.1
-joblib>=1.4.2
-
-# --- Evidence Adjudication & PDF Report Generation ---
-reportlab>=4.2.2
-fpdf2>=2.8.1
-
-# --- Visualizations & Interactive Plots ---
-matplotlib>=3.9.2
-seaborn>=0.13.2
-plotly>=5.24.1
-albumentations>=1.4.15
-
-# --- Audio & Advisory Speech Output ---
-gTTS>=2.5.3
-pydub>=0.25.1
-
-# --- Communications & Network Utilities ---
-twilio>=9.3.3
-requests>=2.32.3
-
-# --- Data Validation & Logging ---
-pydantic>=2.9.2
-pydantic-settings>=2.5.2
-python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
-loguru>=0.7.2
-python-dotenv>=1.0.1
+opencv-python-headless

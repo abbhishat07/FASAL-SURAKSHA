@@ -11,7 +11,11 @@ estimating financial indemnity, and flags potential fraud or high-risk claims.
 import math
 from typing import Dict, Any, Optional
 from datetime import datetime
-from loguru import logger
+try:
+    from loguru import logger
+except (ImportError, ModuleNotFoundError):
+    import logging
+    logger = logging.getLogger("fasal_suraksha")
 
 # PMFBY Operational Guidelines thresholds
 MINIMUM_LOSS_CLAIM_THRESHOLD = 20.0  # PMFBY localized calamity threshold (20% loss minimum)

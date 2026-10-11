@@ -19,7 +19,12 @@ import numpy as np
 import pandas as pd
 import joblib
 from typing import Dict, Any, Optional, Tuple
-from loguru import logger
+try:
+    from loguru import logger
+except (ImportError, ModuleNotFoundError):
+    import logging
+    logger = logging.getLogger("fasal_suraksha")
+
 
 from utils.segmentation import full_leaf_pipeline, draw_severity_overlay
 from utils.gradcam import FasalGradCAM, ONNXInference
