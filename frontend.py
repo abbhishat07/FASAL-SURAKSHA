@@ -1046,17 +1046,24 @@ def build_severity_gauge(severity_pct: float, category: str, is_dark: bool = Fal
     return fig
 
 
-def generate_audio_narration(text: str, lang: str = "hi") -> str:
-    """Generates base64 encoded audio player for farmers."""
+def generate_audio_narration(text: str, lang: str = "hi") -> Optional[io.BytesIO]:
+    """
+    Generates an in-memory MP3 audio buffer using gTTS (Google Text-to-Speech).
+    Streams client-side through st.audio() without relying on server-side audio
+    hardware or writing temporary files to cloud disk.
+    """
     try:
-        tts = gTTS(text=text, lang=lang, slow=False)
-        fp = io.BytesIO()
-        tts.write_to_fp(fp)
-        fp.seek(0)
-        b64_audio = base64.b64encode(fp.read()).decode("utf-8")
-        return f'<audio autoplay controls style="width: 100%; height: 38px; border-radius: 8px;"><source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3"></audio>'
-    except Exception:
-        return ""
+        if not gTTS:
+            return None
+        clean_text = text.replace("*", "").replace("#", "").strip()
+        tts = gTTS(text=clean_text, lang=lang, slow=False)
+        audio_buffer = io.BytesIO()
+        tts.write_to_fp(audio_buffer)
+        audio_buffer.seek(0)
+        return audio_buffer
+    except Exception as exc:
+        logger.warning(f"Audio narration synthesis failed: {exc}")
+        return None
 
 
 # Helper to synthesize realistic sample crop leaves for 1-click test
@@ -1285,7 +1292,7 @@ with right_col:
                         f"PMFBY बीमा दावा स्थिति {pmfby['triage_priority'].split('(')[0]} है।"
                     )
                     spoken_label = f"📢 आवाज़ परामर्श: {disease_name} ({category} संक्रमण)"
-                    player_html = generate_audio_narration(audio_text, lang="hi")
+                    audio_buffer = generate_audio_narration(audio_text, lang="hi")
                 else:
                     audio_text = (
                         f"Detected {disease_name} in {crop_name}. "
@@ -1294,15 +1301,15 @@ with right_col:
                         f"PMFBY Insurance status: {pmfby['triage_priority'].split(':')[0]}."
                     )
                     spoken_label = f"📢 Voice Advisory: {disease_name} ({category} Severity)"
-                    player_html = generate_audio_narration(audio_text, lang="en")
+                    audio_buffer = generate_audio_narration(audio_text, lang="en")
 
-                if player_html:
+                if audio_buffer:
                     st.markdown(f"""
-                    <div class="audio-player-card">
+                    <div class="audio-player-card" style="margin-bottom: 6px;">
                         <span style="font-size: 0.84rem; font-weight: 700; color: #166534;">{spoken_label}</span>
-                        {player_html}
                     </div>
                     """, unsafe_allow_html=True)
+                    st.audio(audio_buffer, format="audio/mp3")
 
             # Pathology Summary Banner
             cat_badge_style = {

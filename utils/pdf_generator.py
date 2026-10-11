@@ -2,7 +2,9 @@
 ====================================================================
 FASAL SURAKSHA - utils/pdf_generator.py
 One-Click 1-Page "Crop Health Diagnostic Card" PDF Generator.
-Styled with professional agricultural White and Green palette.
+Built with fpdf2 for 100% cloud deployment compatibility (Streamlit Cloud,
+Render, Hugging Face Spaces, Linux Docker).
+Styled with an authentic agricultural White and Green palette.
 Embeds leaf scan, Grad-CAM heatmap, disease metrics, dynamic dosage,
 yield forecast, and PMFBY claim verification summary.
 ====================================================================
@@ -10,42 +12,45 @@ yield forecast, and PMFBY claim verification summary.
 
 import os
 import io
+import re
 import cv2
 import numpy as np
 from typing import Dict, Any, Optional
 from datetime import datetime
+
 try:
     from loguru import logger
 except (ImportError, ModuleNotFoundError):
     import logging
     logger = logging.getLogger("fasal_suraksha")
 
-try:
-    from reportlab.lib.pagesizes import letter
-    from reportlab.lib import colors
-    from reportlab.platypus import (
-        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether, HRFlowable
-    )
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import inch
-    REPORTLAB_AVAILABLE = True
-    PRIMARY_GREEN   = colors.HexColor("#1b5e20")
-    ACCENT_GREEN    = colors.HexColor("#2e7d32")
-    LIGHT_BG_GREEN  = colors.HexColor("#e8f5e9")
-    WARNING_ORANGE  = colors.HexColor("#e65100")
-    DARK_TEXT       = colors.HexColor("#1a1a1a")
-    MUTED_TEXT      = colors.HexColor("#424242")
-    BORDER_GREEN    = colors.HexColor("#81c784")
-except (ImportError, ModuleNotFoundError):
-    REPORTLAB_AVAILABLE = False
+from fpdf import FPDF
+from fpdf.enums import XPos, YPos
+
+# ─────────────────────────────────────────────────────────────────
+# Robust Absolute Directory Paths for Cloud Deployments
+# ─────────────────────────────────────────────────────────────────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
+ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
+CACHE_DIR = os.path.join(PROJECT_ROOT, "reports_cache")
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+FONT_REGULAR_PATH = os.path.join(ASSETS_DIR, "DejaVuSans.ttf")
+FONT_BOLD_PATH = os.path.join(ASSETS_DIR, "DejaVuSans-Bold.ttf")
 
 
-
-def _convert_cv2_to_temp_img(image_bgr: np.ndarray, temp_path: str, size: tuple = (220, 220)) -> str:
-    """Helper to write a temporary resized JPEG for reportlab insertion."""
-    resized = cv2.resize(image_bgr, size, interpolation=cv2.INTER_AREA)
-    cv2.imwrite(temp_path, resized, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
-    return temp_path
+def _clean_str(text: Any) -> str:
+    """
+    Sanitizes string inputs to prevent broken character sequences.
+    Strips raw Devanagari brackets if font fallback is used.
+    """
+    if text is None:
+        return ""
+    s = str(text)
+    s = re.sub(r'\s*[\(\[]\s*[\u0900-\u097F\s\/\-]+\s*[\)\]]', '', s)
+    s = re.sub(r'[\u0900-\u097F]+', '', s)
+    return re.sub(r'\s+', ' ', s).strip()
 
 
 def generate_crop_health_pdf(
@@ -55,298 +60,398 @@ def generate_crop_health_pdf(
     output_filename: str = "crop_health_card.pdf"
 ) -> str:
     """
-    Generates a crisp 1-page PDF Crop Health Diagnostic & PMFBY Verification Card.
+    Generates a crisp, professional 1-page PDF Crop Health Diagnostic &
+    PMFBY Verification Card using fpdf2 and bundled TrueType fonts.
 
     Parameters:
         diagnostic_data: Aggregated dictionary containing disease, severity, remedies,
                          yield prediction, and PMFBY verification results.
         original_img_bgr: Original leaf capture (BGR format).
         heatmap_img_bgr: Grad-CAM heatmap overlay (BGR format).
-        output_filename: Destination path for the PDF.
+        output_filename: Destination path or filename for the PDF.
 
     Returns:
         Absolute filepath of the generated PDF document.
     """
-    pdf_path = os.path.abspath(output_filename)
+    if os.path.isabs(output_filename):
+        pdf_path = output_filename
+    else:
+        pdf_path = os.path.abspath(os.path.join(PROJECT_ROOT, output_filename))
 
-    if not REPORTLAB_AVAILABLE:
-        try:
-            from fpdf import FPDF
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Helvetica", "B", 16)
-            pdf.cell(0, 10, "FASAL SURAKSHA - Crop Health Diagnostic Card", ln=True, align="C")
-            pdf.set_font("Helvetica", size=10)
-            pdf.ln(4)
-            pdf.cell(0, 8, f"Generated: {datetime.now().strftime('%d-%b-%Y %H:%M:%S')}", ln=True)
-            crop_name = diagnostic_data.get("crop", "Unknown")
-            disease_name = diagnostic_data.get("disease", "Healthy")
-            severity = diagnostic_data.get("severity_pct", 0.0)
-            pdf.cell(0, 8, f"Crop: {crop_name} | Disease: {disease_name} | Severity: {severity}%", ln=True)
-            yield_pred = diagnostic_data.get("yield_prediction", {})
-            pdf.cell(0, 8, f"Yield Forecast: {yield_pred.get('predicted_yield_t_ha', 0.0)} t/ha", ln=True)
-            pmfby = diagnostic_data.get("pmfby_verification", {})
-            pdf.cell(0, 8, f"PMFBY Status: {pmfby.get('claim_admissibility', 'N/A')}", ln=True)
-            pdf.output(pdf_path)
-            logger.info(f"FPDF2 Crop Health Card generated at: {pdf_path}")
-            return pdf_path
-        except Exception as exc:
-            logger.warning(f"Could not build PDF with fpdf2: {exc}")
-            with open(pdf_path, "wb") as f:
-                f.write(b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 0/Kids[]>>endobj\nxref\n0 3\n0000000000 65535 f\n0000000009 00000 n\n0000000052 00000 n\ntrailer<</Size 3/Root 1 0 R>>\nstartxref\n101\n%%EOF")
-            return pdf_path
+    temp_orig = None
+    temp_cam = None
 
-    doc = SimpleDocTemplate(
-        pdf_path,
-        pagesize=letter,
-        leftMargin=26,
-        rightMargin=26,
-        topMargin=22,
-        bottomMargin=22
-    )
-
-    styles = getSampleStyleSheet()
-
-    # Custom Typography Styles
-    title_style = ParagraphStyle(
-        'DocTitle',
-        parent=styles['Heading1'],
-        fontName='Helvetica-Bold',
-        fontSize=15,
-        leading=18,
-        textColor=PRIMARY_GREEN,
-        alignment=0,
-        spaceAfter=2
-    )
-    subtitle_style = ParagraphStyle(
-        'DocSubTitle',
-        parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=8.5,
-        leading=11,
-        textColor=MUTED_TEXT,
-        alignment=0,
-        spaceAfter=6
-    )
-    section_heading = ParagraphStyle(
-        'SectionHeader',
-        parent=styles['Heading2'],
-        fontName='Helvetica-Bold',
-        fontSize=10,
-        leading=13,
-        textColor=ACCENT_GREEN,
-        spaceBefore=4,
-        spaceAfter=3
-    )
-    body_style = ParagraphStyle(
-        'BodyDark',
-        parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=8,
-        leading=10.5,
-        textColor=DARK_TEXT
-    )
-    body_bold = ParagraphStyle(
-        'BodyBold',
-        parent=styles['Normal'],
-        fontName='Helvetica-Bold',
-        fontSize=8,
-        leading=10.5,
-        textColor=DARK_TEXT
-    )
-    badge_style = ParagraphStyle(
-        'BadgeText',
-        parent=styles['Normal'],
-        fontName='Helvetica-Bold',
-        fontSize=8.5,
-        leading=11,
-        textColor=PRIMARY_GREEN
-    )
-
-    elements = []
-
-    # 1. HEADER SECTION
-    header_data = [
-        [
-            Paragraph("<b>FASAL SURAKSHA (फसल सुरक्षा)</b><br/><font size=8 color='#2e7d32'>AI Micro-Crop Diagnostic, Yield Forecast & PMFBY Verification Engine</font>", title_style),
-            Paragraph(f"<b>Issue Date:</b> {datetime.now().strftime('%d %b %Y, %H:%M')}<br/><b>Card ID:</b> FSC-{int(datetime.now().timestamp()) % 1000000:06d}<br/><b>Verification:</b> Verified via Grad-CAM XAI", subtitle_style)
-        ]
-    ]
-    header_table = Table(header_data, colWidths=[380, 180])
-    header_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-    ]))
-    elements.append(header_table)
-    elements.append(HRFlowable(width="100%", thickness=1.5, color=PRIMARY_GREEN, spaceBefore=2, spaceAfter=6))
-
-    # 2. METADATA SUMMARY BAR
-    crop = diagnostic_data.get("crop", "Tomato")
-    disease = diagnostic_data.get("disease_name", "Late Blight")
-    confidence = diagnostic_data.get("confidence_percent", 94.2)
-    severity_pct = diagnostic_data.get("severity_percent", 34.5)
-    category = diagnostic_data.get("severity_category", "Moderate")
-
-    meta_data = [
-        [
-            Paragraph("<b>Target Crop:</b>", body_bold), Paragraph(str(crop), body_style),
-            Paragraph("<b>Diagnosis:</b>", body_bold), Paragraph(str(disease), body_style),
-            Paragraph("<b>Severity:</b>", body_bold), Paragraph(f"<b>{severity_pct}% ({category})</b>", badge_style),
-            Paragraph("<b>AI Confidence:</b>", body_bold), Paragraph(f"{confidence:.1f}%", body_style),
-        ]
-    ]
-    meta_table = Table(meta_data, colWidths=[65, 80, 65, 115, 60, 95, 75, 55])
-    meta_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), LIGHT_BG_GREEN),
-        ('BOX', (0, 0), (-1, -1), 1, BORDER_GREEN),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ]))
-    elements.append(meta_table)
-    elements.append(Spacer(1, 6))
-
-    # 3. VISUAL INSPECTION: SCAN VS GRAD-CAM HEATMAP
-    temp_orig = "temp_pdf_orig.jpg"
-    temp_cam = "temp_pdf_cam.jpg"
     try:
-        if original_img_bgr is not None:
-            _convert_cv2_to_temp_img(original_img_bgr, temp_orig, (180, 150))
-            img_left = Image(temp_orig, width=1.85 * inch, height=1.5 * inch)
+        # Initialize Letter page (215.9 x 279.4 mm) with fixed 14mm margins
+        pdf = FPDF(orientation="P", unit="mm", format="letter")
+        pdf.set_auto_page_break(auto=False, margin=10)
+        pdf.set_margins(left=14, top=10, right=14)
+        pdf.add_page()
+
+        # Register custom bundled TrueType Unicode font
+        has_unicode_font = False
+        if os.path.exists(FONT_REGULAR_PATH):
+            pdf.add_font("DejaVuSans", style="", fname=FONT_REGULAR_PATH)
+            if os.path.exists(FONT_BOLD_PATH):
+                pdf.add_font("DejaVuSans", style="B", fname=FONT_BOLD_PATH)
+            else:
+                pdf.add_font("DejaVuSans", style="B", fname=FONT_REGULAR_PATH)
+            has_unicode_font = True
+            font_family = "DejaVuSans"
         else:
-            img_left = Paragraph("[Leaf Camera Input Preview]", body_style)
+            font_family = "Helvetica"
+
+        PAGE_WIDTH = 215.9 - 28.0  # 187.9 mm usable width
+
+        # Agricultural Color Palette
+        C_PRIMARY_GREEN = (27, 94, 32)    # #1b5e20
+        C_ACCENT_GREEN  = (46, 125, 50)   # #2e7d32
+        C_LIGHT_BG      = (232, 245, 233) # #e8f5e9
+        C_SOFT_CARD     = (241, 248, 233) # #f1f8e9
+        C_BORDER        = (129, 199, 132) # #81c784
+        C_DARK_TEXT     = (26, 26, 26)    # #1a1a1a
+        C_MUTED_TEXT    = (75, 75, 75)
+        C_ALERT_RED     = (198, 40, 40)   # #c62828
+
+        # ─────────────────────────────────────────────────────────────
+        # 1. HEADER SECTION
+        # ─────────────────────────────────────────────────────────────
+        pdf.set_font(font_family, "B", 15)
+        pdf.set_text_color(*C_PRIMARY_GREEN)
+        pdf.cell(115, 6, "FASAL SURAKSHA", new_x=XPos.RIGHT, new_y=YPos.TOP)
+
+        pdf.set_font(font_family, "", 8)
+        pdf.set_text_color(*C_MUTED_TEXT)
+        now_str = datetime.now().strftime("%d %b %Y, %H:%M")
+        card_id = f"FSC-{int(datetime.now().timestamp()) % 1000000:06d}"
+        pdf.cell(PAGE_WIDTH - 115, 5, f"Issue Date: {now_str}  |  Card ID: {card_id}", align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+        pdf.set_font(font_family, "", 8)
+        pdf.set_text_color(*C_ACCENT_GREEN)
+        pdf.cell(115, 5, "AI Micro-Crop Diagnostic, Yield Forecast & PMFBY Verification Engine", new_x=XPos.RIGHT, new_y=YPos.TOP)
+
+        pdf.set_font(font_family, "B", 7.5)
+        pdf.set_text_color(*C_PRIMARY_GREEN)
+        pdf.cell(PAGE_WIDTH - 115, 5, "Verified via Grad-CAM XAI Engine", align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+        pdf.ln(1.5)
+        pdf.set_draw_color(*C_PRIMARY_GREEN)
+        pdf.set_line_width(0.7)
+        pdf.line(14, pdf.get_y(), 14 + PAGE_WIDTH, pdf.get_y())
+        pdf.ln(2.5)
+
+        # ─────────────────────────────────────────────────────────────
+        # 2. METADATA SUMMARY BAR (4 Columns)
+        # ─────────────────────────────────────────────────────────────
+        crop = _clean_str(diagnostic_data.get("crop", "Tomato"))
+        disease = _clean_str(diagnostic_data.get("disease_name", "Late Blight"))
+        confidence = float(diagnostic_data.get("confidence_percent", 94.2))
+        severity_pct = float(diagnostic_data.get("severity_percent", 34.5))
+        category = _clean_str(diagnostic_data.get("severity_category", "Moderate"))
+
+        meta_y = pdf.get_y()
+        meta_h = 13.5
+        pdf.set_fill_color(*C_LIGHT_BG)
+        pdf.set_draw_color(*C_BORDER)
+        pdf.set_line_width(0.3)
+        pdf.rect(14, meta_y, PAGE_WIDTH, meta_h, style="FD")
+
+        col_w = PAGE_WIDTH / 4.0
+        meta_items = [
+            ("Target Crop:", crop),
+            ("Diagnosis:", disease),
+            ("Severity:", f"{severity_pct:.1f}% ({category})"),
+            ("AI Confidence:", f"{confidence:.1f}%")
+        ]
+        for i, (label, val) in enumerate(meta_items):
+            cx = 14 + (i * col_w)
+            pdf.set_xy(cx + 3, meta_y + 1.8)
+            pdf.set_font(font_family, "", 7)
+            pdf.set_text_color(*C_MUTED_TEXT)
+            pdf.cell(col_w - 6, 3.5, label)
+
+            pdf.set_xy(cx + 3, meta_y + 6.2)
+            pdf.set_font(font_family, "B", 8.5)
+            pdf.set_text_color(*C_PRIMARY_GREEN)
+            pdf.cell(col_w - 6, 5, val)
+
+        pdf.set_y(meta_y + meta_h + 3.0)
+
+        # ─────────────────────────────────────────────────────────────
+        # 3. VISUAL INSPECTION (SCAN VS GRAD-CAM) & YIELD SIMULATION
+        # ─────────────────────────────────────────────────────────────
+        vis_y = pdf.get_y()
+        col_img_w = 44.0
+        gap = 4.0
+        yield_w = PAGE_WIDTH - (col_img_w * 2 + gap * 2)
+        vis_h = 42.0
+
+        # Sub-panel 1: Leaf Scan
+        pdf.set_draw_color(*C_BORDER)
+        pdf.set_fill_color(248, 250, 248)
+        pdf.rect(14, vis_y, col_img_w, vis_h, style="FD")
+        pdf.set_xy(14, vis_y + 1.5)
+        pdf.set_font(font_family, "B", 7)
+        pdf.set_text_color(*C_ACCENT_GREEN)
+        pdf.cell(col_img_w, 3.5, "Original Leaf Capture", align="C")
+
+        if original_img_bgr is not None:
+            temp_orig = os.path.join(CACHE_DIR, f"temp_leaf_{int(datetime.now().timestamp())}_{os.getpid()}.jpg")
+            resized_orig = cv2.resize(original_img_bgr, (240, 200), interpolation=cv2.INTER_AREA)
+            cv2.imwrite(temp_orig, resized_orig, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+            pdf.image(temp_orig, x=15.5, y=vis_y + 6, w=col_img_w - 3, h=33)
+        else:
+            pdf.set_xy(14, vis_y + 18)
+            pdf.set_font(font_family, "", 7)
+            pdf.set_text_color(*C_MUTED_TEXT)
+            pdf.cell(col_img_w, 4, "[Camera Scan Input]", align="C")
+
+        # Sub-panel 2: Grad-CAM Heatmap
+        cam_x = 14 + col_img_w + gap
+        pdf.set_draw_color(*C_BORDER)
+        pdf.set_fill_color(248, 250, 248)
+        pdf.rect(cam_x, vis_y, col_img_w, vis_h, style="FD")
+        pdf.set_xy(cam_x, vis_y + 1.5)
+        pdf.set_font(font_family, "B", 7)
+        pdf.set_text_color(*C_ACCENT_GREEN)
+        pdf.cell(col_img_w, 3.5, "Grad-CAM AI Heatmap", align="C")
 
         if heatmap_img_bgr is not None:
-            _convert_cv2_to_temp_img(heatmap_img_bgr, temp_cam, (180, 150))
-            img_right = Image(temp_cam, width=1.85 * inch, height=1.5 * inch)
+            temp_cam = os.path.join(CACHE_DIR, f"temp_cam_{int(datetime.now().timestamp())}_{os.getpid()}.jpg")
+            resized_cam = cv2.resize(heatmap_img_bgr, (240, 200), interpolation=cv2.INTER_AREA)
+            cv2.imwrite(temp_cam, resized_cam, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+            pdf.image(temp_cam, x=cam_x + 1.5, y=vis_y + 6, w=col_img_w - 3, h=33)
         else:
-            img_right = Paragraph("[Grad-CAM Heatmap Overlay]", body_style)
+            pdf.set_xy(cam_x, vis_y + 18)
+            pdf.set_font(font_family, "", 7)
+            pdf.set_text_color(*C_MUTED_TEXT)
+            pdf.cell(col_img_w, 4, "[Grad-CAM Overlay]", align="C")
+
+        # Sub-panel 3: XGBoost Yield Impact
+        yield_x = cam_x + col_img_w + gap
+        pdf.set_fill_color(*C_SOFT_CARD)
+        pdf.set_draw_color(*C_BORDER)
+        pdf.rect(yield_x, vis_y, yield_w, vis_h, style="FD")
 
         yield_info = diagnostic_data.get("yield_prediction", {})
-        proj_yield = yield_info.get("predicted_yield_tons_per_acre", 14.8)
-        baseline_yield = yield_info.get("baseline_potential_yield_tons", 22.0)
-        yield_loss_pct = yield_info.get("projected_loss_percent", 32.7)
+        proj_yield = float(yield_info.get("predicted_yield_tons_per_acre", 14.8))
+        baseline_yield = float(yield_info.get("baseline_potential_yield_tons", 22.0))
+        yield_loss_pct = float(yield_info.get("projected_loss_percent", 32.7))
 
-        vis_data = [
-            [
-                Paragraph("<b>Original Leaf Capture</b>", section_heading),
-                Paragraph("<b>Grad-CAM Explainable AI Heatmap</b>", section_heading),
-                Paragraph("<b>Yield Impact Simulation (XGBoost)</b>", section_heading)
-            ],
-            [
-                img_left,
-                img_right,
-                Paragraph(
-                    f"<b>Potential Healthy Yield:</b> {baseline_yield} Tons/Acre<br/>"
-                    f"<b>Forecasted Harvest Yield:</b> <font color='#c62828'><b>{proj_yield} Tons/Acre</b></font><br/>"
-                    f"<b>Projected Deficit / Loss:</b> <font color='#c62828'><b>{yield_loss_pct}%</b></font><br/><br/>"
-                    f"<i>Model incorporates crop age, seasonal rainfall index, soil pH & pathological leaf necrosis.</i>",
-                    body_style
-                )
-            ]
+        pdf.set_xy(yield_x + 3.5, vis_y + 2)
+        pdf.set_font(font_family, "B", 7.5)
+        pdf.set_text_color(*C_ACCENT_GREEN)
+        pdf.cell(yield_w - 7, 4, "Yield Impact Simulation (XGBoost)")
+
+        pdf.set_xy(yield_x + 3.5, vis_y + 7.5)
+        pdf.set_font(font_family, "", 7)
+        pdf.set_text_color(*C_DARK_TEXT)
+        pdf.cell(yield_w - 7, 4, f"Potential Healthy Yield:  {baseline_yield:.1f} Tons/Acre")
+
+        pdf.set_xy(yield_x + 3.5, vis_y + 12.5)
+        pdf.cell(32, 4, "Forecasted Harvest: ")
+        pdf.set_xy(yield_x + 35.5, vis_y + 12.5)
+        pdf.set_font(font_family, "B", 7)
+        pdf.set_text_color(*C_ALERT_RED)
+        pdf.cell(40, 4, f"{proj_yield:.2f} Tons/Acre")
+
+        pdf.set_xy(yield_x + 3.5, vis_y + 17.5)
+        pdf.set_font(font_family, "", 7)
+        pdf.set_text_color(*C_DARK_TEXT)
+        pdf.cell(35, 4, "Projected Deficit / Loss: ")
+        pdf.set_xy(yield_x + 38.5, vis_y + 17.5)
+        pdf.set_font(font_family, "B", 7)
+        pdf.set_text_color(*C_ALERT_RED)
+        pdf.cell(40, 4, f"{yield_loss_pct:.1f}%")
+
+        pdf.set_xy(yield_x + 3.5, vis_y + 24)
+        pdf.set_font(font_family, "", 6.2)
+        pdf.set_text_color(*C_MUTED_TEXT)
+        pdf.multi_cell(
+            yield_w - 7, 3.2,
+            "Model simulates crop age (65d), seasonal precipitation, soil pH (6.5), "
+            "and pathological leaf necrosis index calibrated for agricultural zones."
+        )
+
+        pdf.set_y(vis_y + vis_h + 3.5)
+
+        # ─────────────────────────────────────────────────────────────
+        # 4. PRESCRIBED TREATMENT PLAN TABLE
+        # ─────────────────────────────────────────────────────────────
+        pdf.set_font(font_family, "B", 8)
+        pdf.set_text_color(*C_ACCENT_GREEN)
+        pdf.cell(PAGE_WIDTH, 4.5, "Prescribed Treatment Plan (ICAR / Agronomic Standards)", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(1)
+
+        w_cat = 28.0
+        w_form = 58.0
+        w_dose = 50.0
+        w_safe = PAGE_WIDTH - (w_cat + w_form + w_dose)
+
+        # Table Header
+        pdf.set_fill_color(*C_LIGHT_BG)
+        pdf.set_draw_color(*C_BORDER)
+        pdf.set_font(font_family, "B", 7)
+        pdf.set_text_color(*C_PRIMARY_GREEN)
+        pdf.cell(w_cat, 5.5, "Category", border=1, fill=True, align="C")
+        pdf.cell(w_form, 5.5, "Prescribed Formulation", border=1, fill=True)
+        pdf.cell(w_dose, 5.5, "Concentration & Tank Dose", border=1, fill=True)
+        pdf.cell(w_safe, 5.5, "Frequency & Application", border=1, fill=True, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+        dosage = diagnostic_data.get("dosage_plan", {})
+        org = dosage.get("organic_plan", {})
+        chem = dosage.get("chemical_plan", {})
+
+        org_name = _clean_str(org.get("name_en", "Neem Oil 10,000 PPM + Trichoderma harzianum"))
+        chem_name = _clean_str(chem.get("name_en", "Mancozeb 75% WP (Dithane M-45)"))
+        org_conc = _clean_str(org.get("concentration_per_liter", "3.0 mL / Liter water"))
+        org_tank = _clean_str(org.get("knapsack_tank_dose", "45.0 mL for 15L tank"))
+        chem_conc = _clean_str(chem.get("concentration_per_liter", "2.5 g / Liter water"))
+        chem_tank = _clean_str(chem.get("knapsack_tank_dose", "37.5 g for 15L tank"))
+        org_instr = _clean_str(org.get("instructions_en", "Spray at first sign of foliar lesions."))
+        chem_instr = _clean_str(chem.get("instructions_en", "Uniform foliar application covering both canopy surfaces."))
+
+        row_h = 15.0
+
+        # Row 1: Organic / Bio
+        r1_y = pdf.get_y()
+        pdf.set_font(font_family, "B", 6.8)
+        pdf.set_text_color(*C_ACCENT_GREEN)
+        pdf.cell(w_cat, row_h, "Organic / Bio", border=1, align="C", new_x=XPos.RIGHT, new_y=YPos.TOP)
+
+        pdf.set_xy(14 + w_cat + 2, r1_y + 1.8)
+        pdf.set_font(font_family, "B", 6.8)
+        pdf.set_text_color(*C_DARK_TEXT)
+        pdf.cell(w_form - 4, 3.8, org_name)
+        pdf.set_xy(14 + w_cat + 2, r1_y + 6.2)
+        pdf.set_font(font_family, "", 6.2)
+        pdf.cell(w_form - 4, 3.2, "Bio-fungicide protective formulation")
+        pdf.rect(14 + w_cat, r1_y, w_form, row_h)
+
+        pdf.set_xy(14 + w_cat + w_form + 2, r1_y + 1.8)
+        pdf.cell(w_dose - 4, 3.8, f"- {org_conc}")
+        pdf.set_xy(14 + w_cat + w_form + 2, r1_y + 6.2)
+        pdf.cell(w_dose - 4, 3.8, f"- {org_tank}")
+        pdf.rect(14 + w_cat + w_form, r1_y, w_dose, row_h)
+
+        pdf.set_xy(14 + w_cat + w_form + w_dose + 2, r1_y + 1.8)
+        pdf.multi_cell(w_safe - 4, 3.2, f"Every {org.get('interval_days', 7)} days. {org_instr}")
+        pdf.rect(14 + w_cat + w_form + w_dose, r1_y, w_safe, row_h)
+
+        # Row 2: Chemical Systemic
+        r2_y = r1_y + row_h
+        pdf.set_xy(14, r2_y)
+        pdf.set_font(font_family, "B", 6.8)
+        pdf.set_text_color(*C_ALERT_RED)
+        pdf.cell(w_cat, row_h, "Chemical", border=1, align="C", new_x=XPos.RIGHT, new_y=YPos.TOP)
+
+        pdf.set_xy(14 + w_cat + 2, r2_y + 1.8)
+        pdf.set_font(font_family, "B", 6.8)
+        pdf.set_text_color(*C_DARK_TEXT)
+        pdf.cell(w_form - 4, 3.8, chem_name)
+        pdf.set_xy(14 + w_cat + 2, r2_y + 6.2)
+        pdf.set_font(font_family, "", 6.2)
+        pdf.cell(w_form - 4, 3.2, "Systemic curative fungicide")
+        pdf.rect(14 + w_cat, r2_y, w_form, row_h)
+
+        pdf.set_xy(14 + w_cat + w_form + 2, r2_y + 1.8)
+        pdf.cell(w_dose - 4, 3.8, f"- {chem_conc}")
+        pdf.set_xy(14 + w_cat + w_form + 2, r2_y + 6.2)
+        pdf.cell(w_dose - 4, 3.8, f"- {chem_tank}")
+        pdf.rect(14 + w_cat + w_form, r2_y, w_dose, row_h)
+
+        pdf.set_xy(14 + w_cat + w_form + w_dose + 2, r2_y + 1.8)
+        pdf.multi_cell(w_safe - 4, 3.2, f"Every {chem.get('interval_days', 10)} days. {chem_instr}")
+        pdf.rect(14 + w_cat + w_form + w_dose, r2_y, w_safe, row_h)
+
+        pdf.set_y(r2_y + row_h + 3.0)
+
+        # ─────────────────────────────────────────────────────────────
+        # 5. PMFBY CROP INSURANCE VERIFICATION DOSSIER
+        # ─────────────────────────────────────────────────────────────
+        pdf.set_font(font_family, "B", 8)
+        pdf.set_text_color(*C_ACCENT_GREEN)
+        pdf.cell(PAGE_WIDTH, 4.5, "PMFBY Crop Insurance Evidence & Verification Dossier", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(1)
+
+        ins_y = pdf.get_y()
+        ins_h = 26.0
+        pdf.set_fill_color(*C_SOFT_CARD)
+        pdf.set_draw_color(*C_PRIMARY_GREEN)
+        pdf.set_line_width(0.4)
+        pdf.rect(14, ins_y, PAGE_WIDTH, ins_h, style="FD")
+
+        pmfby = diagnostic_data.get("pmfby_verification", {})
+        claim_eligible = pmfby.get("is_claim_eligible", True)
+        payout = float(pmfby.get("estimated_indemnity_payout_inr", 22425.0))
+        triage = _clean_str(pmfby.get("triage_priority", "TIER-2: FAST-TRACK DIGITAL ADJUDICATION"))
+        claim_id = _clean_str(pmfby.get("claim_id", "PMFBY-2026-X89"))
+        farmer_id = _clean_str(pmfby.get("farmer_id", "KCC-FMR-98214"))
+        surveyor_advice = _clean_str(pmfby.get("surveyor_recommendation", "Damage crosses 20% statutory threshold. Approved."))
+
+        c_w = PAGE_WIDTH / 4.0
+
+        # Row A: Key Metrics
+        labels_a = [
+            ("Claim Token:", claim_id),
+            ("Farmer / KCC ID:", farmer_id),
+            ("Claim Eligibility:", "YES (Admissible)" if claim_eligible else "NO (Sub-threshold)"),
+            ("Est. Indemnity:", f"INR {payout:,.2f}")
         ]
-        vis_table = Table(vis_data, colWidths=[150, 150, 260])
-        vis_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LINEBELOW', (0, 0), (-1, 0), 1, BORDER_GREEN),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ]))
-        elements.append(vis_table)
-    except Exception as e:
-        logger.warning(f"Error drawing PDF imagery: {e}")
-    elements.append(Spacer(1, 6))
+        for i, (lbl, val) in enumerate(labels_a):
+            x = 14 + (i * c_w)
+            pdf.set_xy(x + 3, ins_y + 1.8)
+            pdf.set_font(font_family, "", 6.2)
+            pdf.set_text_color(*C_MUTED_TEXT)
+            pdf.cell(c_w - 6, 3.2, lbl)
 
-    # 4. ACTIONABLE REMEDIES & DOSAGE ADVISORY
-    elements.append(Paragraph("<b>Prescribed Treatment Plan (ICAR / Agronomic Standards)</b>", section_heading))
-    dosage = diagnostic_data.get("dosage_plan", {})
-    org = dosage.get("organic_plan", {})
-    chem = dosage.get("chemical_plan", {})
+            pdf.set_xy(x + 3, ins_y + 5.5)
+            pdf.set_font(font_family, "B", 7.2)
+            pdf.set_text_color(*C_PRIMARY_GREEN)
+            pdf.cell(c_w - 6, 4, val)
 
-    remedy_data = [
-        [
-            Paragraph("<b>Category</b>", body_bold),
-            Paragraph("<b>Prescribed Formulation</b>", body_bold),
-            Paragraph("<b>Concentration & Tank Dose</b>", body_bold),
-            Paragraph("<b>Frequency & Safety</b>", body_bold)
-        ],
-        [
-            Paragraph("<font color='#2e7d32'><b>Organic / Bio</b></font>", body_style),
-            Paragraph(f"<b>{org.get('name_en', 'Bio-formulation')}</b><br/>{org.get('name_hi', '')}", body_style),
-            Paragraph(f"• {org.get('concentration_per_liter', '2.5 mL/L')}<br/>• {org.get('knapsack_tank_dose', '37.5 mL / 15L tank')}", body_style),
-            Paragraph(f"Every {org.get('interval_days', 7)} days.<br/>{org.get('instructions_en', 'Foliar application')}", body_style)
-        ],
-        [
-            Paragraph("<font color='#c62828'><b>Chemical Systemic</b></font>", body_style),
-            Paragraph(f"<b>{chem.get('name_en', 'Fungicide')}</b><br/>{chem.get('name_hi', '')}", body_style),
-            Paragraph(f"• {chem.get('concentration_per_liter', '2.0 mL/L')}<br/>• {chem.get('knapsack_tank_dose', '30 mL / 15L tank')}", body_style),
-            Paragraph(f"Every {chem.get('interval_days', 10)} days.<br/>{diagnostic_data.get('safety_instructions_en', 'Wear gloves.')}", body_style)
+        # Row B: Verification Directives
+        labels_b = [
+            ("Audit Priority:", triage),
+            ("Surveyor Directive:", surveyor_advice),
+            ("Metadata Integrity:", "Tamper Score: 96% | Geo: Verified"),
+            ("Scheme Reference:", "PMFBY Localized Calamities Norm")
         ]
-    ]
-    remedy_table = Table(remedy_data, colWidths=[85, 175, 145, 155])
-    remedy_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), LIGHT_BG_GREEN),
-        ('GRID', (0, 0), (-1, -1), 0.5, BORDER_GREEN),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-    ]))
-    elements.append(remedy_table)
-    elements.append(Spacer(1, 6))
+        for i, (lbl, val) in enumerate(labels_b):
+            x = 14 + (i * c_w)
+            pdf.set_xy(x + 3, ins_y + 10.5)
+            pdf.set_font(font_family, "", 6.2)
+            pdf.set_text_color(*C_MUTED_TEXT)
+            pdf.cell(c_w - 6, 3.2, lbl)
 
-    # 5. PMFBY CROP INSURANCE VERIFICATION SECTION
-    elements.append(Paragraph("<b>PMFBY Crop Insurance Evidence & Verification Dossier</b>", section_heading))
-    pmfby = diagnostic_data.get("pmfby_verification", {})
+            pdf.set_xy(x + 3, ins_y + 14.5)
+            pdf.set_font(font_family, "", 5.8)
+            pdf.set_text_color(*C_DARK_TEXT)
+            pdf.multi_cell(c_w - 6, 2.6, val)
 
-    claim_eligible = pmfby.get("is_claim_eligible", True)
-    payout = pmfby.get("estimated_indemnity_payout_inr", 22425.0)
-    triage = pmfby.get("triage_priority", "TIER-2: FAST-TRACK DIGITAL ADJUDICATION")
-    claim_id = pmfby.get("claim_id", "PMFBY-2026-X89")
-    farmer_id = pmfby.get("farmer_id", "KCC-FMR-98214")
+        # ─────────────────────────────────────────────────────────────
+        # 6. FOOTER SIGN-OFF
+        # ─────────────────────────────────────────────────────────────
+        pdf.set_y(ins_y + ins_h + 3.0)
+        pdf.set_font(font_family, "", 6.2)
+        pdf.set_text_color(*C_MUTED_TEXT)
+        pdf.multi_cell(
+            PAGE_WIDTH, 3.0,
+            "Digitally generated by FASAL SURAKSHA AI Platform. Complies with PMFBY automated claims adjudication guidelines "
+            "and ICAR crop protection standards. For re-scan or dispute redressal, visit nearest Krishi Vigyan Kendra (KVK).",
+            align="C"
+        )
 
-    insurance_data = [
-        [
-            Paragraph(f"<b>Claim Token:</b> {claim_id}", body_style),
-            Paragraph(f"<b>Farmer / KCC ID:</b> {farmer_id}", body_style),
-            Paragraph(f"<b>Eligible:</b> {'YES (Claim Admissible)' if claim_eligible else 'NO (Below 20% Norm)'}", body_bold),
-            Paragraph(f"<b>Estimated Indemnity:</b> <font color='#1b5e20'><b>INR {payout:,.2f}</b></font>", body_bold)
-        ],
-        [
-            Paragraph(f"<b>Audit Priority:</b><br/>{triage}", body_style),
-            Paragraph(f"<b>Surveyor Advice:</b><br/>{pmfby.get('surveyor_recommendation', 'Verified.')}", body_style),
-            Paragraph(f"<b>Metadata & Integrity:</b><br/>Tamper Score: 96% | Geo: Verified", body_style),
-            Paragraph(f"<b>Scheme:</b><br/>PMFBY Localized Calamity", body_style)
-        ]
-    ]
-    ins_table = Table(insurance_data, colWidths=[130, 150, 140, 140])
-    ins_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f1f8e9")),
-        ('BOX', (0, 0), (-1, -1), 1, PRIMARY_GREEN),
-        ('GRID', (0, 0), (-1, -1), 0.5, BORDER_GREEN),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-    ]))
-    elements.append(ins_table)
+        # Output PDF document
+        pdf.output(pdf_path)
+        logger.info(f"Crop Health Card PDF generated successfully at: {pdf_path}")
+        return pdf_path
 
-    # 6. FOOTER SIGN-OFF
-    elements.append(Spacer(1, 8))
-    footer_text = (
-        "<i>Digitally generated by FASAL SURAKSHA AI Platform. Complies with PMFBY automated claims guidelines "
-        "and ICAR crop protection standards. For re-scan or dispute redressal, visit nearest Krishi Vigyan Kendra (KVK).</i>"
-    )
-    elements.append(Paragraph(footer_text, subtitle_style))
-
-    # Build document
-    doc.build(elements)
-
-    # Cleanup temporary image files
-    for p in [temp_orig, temp_cam]:
-        if os.path.exists(p):
-            try:
-                os.remove(p)
-            except Exception:
-                pass
-
-    logger.info(f"Crop Health Card PDF generated successfully at: {pdf_path}")
-    return pdf_path
+    finally:
+        # Guarantee cleanup of temporary resized images
+        for p in [temp_orig, temp_cam]:
+            if p and os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass

@@ -8,6 +8,8 @@ pandas
 numpy
 pillow
 fpdf2
+reportlab
+gTTS
 python-multipart
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch
