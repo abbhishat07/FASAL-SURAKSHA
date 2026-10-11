@@ -13,3 +13,4 @@ python-multipart
 torch
 torchvision
 opencv-python-headless
+loguru
