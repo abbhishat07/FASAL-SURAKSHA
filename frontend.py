@@ -15,6 +15,12 @@ from PIL import Image
 from datetime import datetime
 from typing import Any, Optional
 try:
+    from loguru import logger
+except (ImportError, ModuleNotFoundError):
+    import logging
+    logger = logging.getLogger("fasal_suraksha")
+
+try:
     from gtts import gTTS
 except (ImportError, ModuleNotFoundError):
     gTTS = None  # type: ignore
@@ -1056,13 +1062,18 @@ def generate_audio_narration(text: str, lang: str = "hi") -> Optional[io.BytesIO
         if not gTTS:
             return None
         clean_text = text.replace("*", "").replace("#", "").strip()
+        if not clean_text:
+            return None
         tts = gTTS(text=clean_text, lang=lang, slow=False)
         audio_buffer = io.BytesIO()
         tts.write_to_fp(audio_buffer)
         audio_buffer.seek(0)
         return audio_buffer
     except Exception as exc:
-        logger.warning(f"Audio narration synthesis failed: {exc}")
+        try:
+            logger.warning(f"Audio narration synthesis failed: {exc}")
+        except Exception:
+            pass
         return None
 
 
