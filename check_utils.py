@@ -9,6 +9,8 @@ utils_files = [
     "utils/dosage_calculator.py",
     "utils/pmfby_verifier.py",
     "utils/pdf_generator.py",
+    "utils/autodetect.py",
+    "utils/yield_predictor.py",
 ]
 
 for fn in utils_files:

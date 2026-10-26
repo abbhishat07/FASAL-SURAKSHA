@@ -19,28 +19,50 @@ from torchvision import models, transforms
 from PIL import Image
 from loguru import logger
 
-# 38 Common Micro-Crop & PlantVillage Disease Classes
+# 45 Micro-Crop & PlantVillage Disease Classes (All pasted field datasets included)
 CROP_DISEASE_CLASSES = [
+    # Apple
     "Apple___Apple_scab",
     "Apple___Black_rot",
     "Apple___Cedar_apple_rust",
     "Apple___healthy",
+    # Corn (Maize)
     "Corn_(maize)___Cercospora_leaf_spot_Gray_leaf_spot",
     "Corn_(maize)___Common_rust_",
     "Corn_(maize)___Northern_Leaf_Blight",
     "Corn_(maize)___healthy",
+    # Grape
     "Grape___Black_rot",
     "Grape___Esca_(Black_Measles)",
     "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)",
     "Grape___healthy",
+    # Citrus / Orange
+    "Orange___Haunglongbing_(Citrus_greening)",
+    # Peach
+    "Peach___Bacterial_spot",
+    "Peach___healthy",
+    # Bell Pepper
+    "Pepper__bell___Bacterial_spot",
+    "Pepper__bell___healthy",
+    # Potato
     "Potato___Early_blight",
     "Potato___Late_blight",
     "Potato___healthy",
+    # Raspberry
+    "Raspberry___healthy",
+    # Rice
     "Rice___Brown_Spot",
     "Rice___Leaf_Blast",
     "Rice___Neck_Blast",
     "Rice___healthy",
+    # Soybean
     "Soybean___healthy",
+    # Squash
+    "Squash___Powdery_mildew",
+    # Strawberry
+    "Strawberry___Leaf_scorch",
+    "Strawberry___healthy",
+    # Tomato
     "Tomato___Bacterial_spot",
     "Tomato___Early_blight",
     "Tomato___Late_blight",
@@ -51,15 +73,20 @@ CROP_DISEASE_CLASSES = [
     "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
     "Tomato___Tomato_mosaic_virus",
     "Tomato___healthy",
+    # Wheat
     "Wheat___Brown_Rust",
     "Wheat___Yellow_Stripe_Rust",
     "Wheat___Septoria",
     "Wheat___healthy",
-    "Pepper__bell___Bacterial_spot",
-    "Pepper__bell___healthy",
+    # Cotton
     "Cotton___Bacterial_Blight",
     "Cotton___healthy"
 ]
+
+
+def normalize_class_name(name: str) -> str:
+    """Normalizes dataset directory names across punctuation/space conventions."""
+    return name.replace(',_', '__').replace(' ', '_').replace('-', '_').lower()
 
 
 class SyntheticCropLeafDataset(Dataset):
@@ -78,20 +105,17 @@ class SyntheticCropLeafDataset(Dataset):
 
     def __getitem__(self, idx):
         label = idx % self.num_classes
-        # Synthesize leaf-textured image (Green with optional brownish spots)
         np_img = np.zeros((224, 224, 3), dtype=np.uint8)
-        # Leaf green background
         np_img[:, :, 1] = np.random.randint(120, 210, (224, 224), dtype=np.uint8)
         np_img[:, :, 0] = np.random.randint(30, 80, (224, 224), dtype=np.uint8)
         np_img[:, :, 2] = np.random.randint(20, 60, (224, 224), dtype=np.uint8)
 
-        # If not healthy, add necrotic brown/yellow lesions
         if "healthy" not in CROP_DISEASE_CLASSES[label].lower():
             cx, cy = np.random.randint(50, 170), np.random.randint(50, 170)
             radius = np.random.randint(15, 45)
             y, x = np.ogrid[:224, :224]
             mask = (x - cx)**2 + (y - cy)**2 <= radius**2
-            np_img[mask, 0] = np.random.randint(100, 180) # Reddish-brown
+            np_img[mask, 0] = np.random.randint(100, 180)
             np_img[mask, 1] = np.random.randint(60, 120)
             np_img[mask, 2] = np.random.randint(10, 40)
 
@@ -112,51 +136,26 @@ def build_mobilenet_v3(num_classes: int) -> nn.Module:
     return model
 
 
-def train_and_export_cnn(
-    data_dir: str = "dataset",
-    output_dir: str = "models",
-    epochs: int = 5,
-    batch_size: int = 16,
-    lr: float = 0.001
-):
-    os.makedirs(output_dir, exist_ok=True)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Using device for CNN training: {device}")
-
-    num_classes = len(CROP_DISEASE_CLASSES)
-
-    train_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(15),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
-
-    val_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
-
 class MappedCropDataset(Dataset):
     """Loads images from subfolders and maps them strictly to CROP_DISEASE_CLASSES indices."""
-    def __init__(self, data_dir: str, class_list: list, transform=None):
+    def __init__(self, data_dir: str, class_list: list, transform=None, max_samples_per_class: int = None):
         self.samples = []
         self.transform = transform
-        self.class_to_idx = {name: idx for idx, name in enumerate(class_list)}
+        self.norm_to_idx = {normalize_class_name(name): idx for idx, name in enumerate(class_list)}
 
         if os.path.exists(data_dir):
             for d in os.listdir(data_dir):
                 d_path = os.path.join(data_dir, d)
                 if not os.path.isdir(d_path):
                     continue
-                if d in self.class_to_idx:
-                    idx = self.class_to_idx[d]
-                    for f in os.listdir(d_path):
-                        if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-                            self.samples.append((os.path.join(d_path, f), idx))
+                norm_d = normalize_class_name(d)
+                if norm_d in self.norm_to_idx:
+                    idx = self.norm_to_idx[norm_d]
+                    files = [f for f in os.listdir(d_path) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))]
+                    if max_samples_per_class and len(files) > max_samples_per_class:
+                        files = files[:max_samples_per_class]
+                    for f in files:
+                        self.samples.append((os.path.join(d_path, f), idx))
 
     def __len__(self):
         return len(self.samples)
@@ -172,9 +171,10 @@ class MappedCropDataset(Dataset):
 def train_and_export_cnn(
     data_dir: str = "dataset",
     output_dir: str = "models",
-    epochs: int = 5,
+    epochs: int = 3,
     batch_size: int = 16,
-    lr: float = 0.001
+    lr: float = 0.001,
+    max_samples_per_class: int = 35
 ):
     os.makedirs(output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -197,18 +197,18 @@ def train_and_export_cnn(
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    # Combine real mapped dataset with synthetic samples across all 38 classes
-    mapped_real = MappedCropDataset(data_dir, CROP_DISEASE_CLASSES, transform=train_transform)
-    synth_train = SyntheticCropLeafDataset(num_samples=228, num_classes=num_classes, transform=train_transform)
-    
+    # Combine real mapped dataset with synthetic samples across all classes
+    mapped_real = MappedCropDataset(data_dir, CROP_DISEASE_CLASSES, transform=train_transform, max_samples_per_class=max_samples_per_class)
+    synth_train = SyntheticCropLeafDataset(num_samples=num_classes * 4, num_classes=num_classes, transform=train_transform)
+
     if len(mapped_real) > 0:
-        logger.info(f"Loaded {len(mapped_real)} real samples with exact CROP_DISEASE_CLASSES indices.")
+        logger.info(f"Loaded {len(mapped_real)} real samples across pasted dataset subfolders.")
         train_ds = torch.utils.data.ConcatDataset([mapped_real, synth_train])
     else:
-        logger.info("Using full synthetic leaf dataset covering all 38 agricultural classes.")
+        logger.info("Using full synthetic leaf dataset covering all agricultural classes.")
         train_ds = synth_train
 
-    val_ds = SyntheticCropLeafDataset(num_samples=76, num_classes=num_classes, transform=val_transform)
+    val_ds = SyntheticCropLeafDataset(num_samples=num_classes * 2, num_classes=num_classes, transform=val_transform)
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
@@ -218,8 +218,7 @@ def train_and_export_cnn(
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-    logger.info("Commencing MobileNetV3-Small fine-tuning...")
-    best_acc = 0.0
+    logger.info("Commencing MobileNetV3-Small fine-tuning on integrated datasets...")
 
     for epoch in range(1, epochs + 1):
         model.train()
@@ -241,8 +240,8 @@ def train_and_export_cnn(
             total += labels.size(0)
 
         scheduler.step()
-        train_loss = running_loss / total
-        train_acc = correct / total
+        train_loss = running_loss / max(1, total)
+        train_acc = correct / max(1, total)
 
         # Validation
         model.eval()
@@ -281,27 +280,30 @@ def train_and_export_cnn(
     dummy_input = torch.randn(1, 3, 224, 224, dtype=torch.float32)
     onnx_path = os.path.join(output_dir, "fasal_suraksha_cnn.onnx")
 
-    torch.onnx.export(
-        model,
-        dummy_input,
-        onnx_path,
-        export_params=True,
-        opset_version=14,
-        do_constant_folding=True,
-        input_names=["input_leaf_image"],
-        output_names=["disease_logits"],
-        dynamic_axes={"input_leaf_image": {0: "batch_size"}, "disease_logits": {0: "batch_size"}}
-    )
-    logger.info(f"ONNX model successfully exported to: {onnx_path}")
+    try:
+        torch.onnx.export(
+            model,
+            dummy_input,
+            onnx_path,
+            export_params=True,
+            opset_version=18,
+            do_constant_folding=True,
+            input_names=["input_leaf_image"],
+            output_names=["disease_logits"]
+        )
+        logger.info(f"ONNX model successfully exported to: {onnx_path}")
+    except Exception as e:
+        logger.warning(f"ONNX export notice: {e}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train Fasal Suraksha MobileNetV3 CNN")
     parser.add_argument("--data-dir", type=str, default="dataset")
     parser.add_argument("--output-dir", type=str, default="models")
-    parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument("--epochs", type=int, default=2)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--max-samples", type=int, default=35)
     args = parser.parse_args()
 
     train_and_export_cnn(
@@ -309,5 +311,6 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         epochs=args.epochs,
         batch_size=args.batch_size,
-        lr=args.lr
+        lr=args.lr,
+        max_samples_per_class=args.max_samples
     )

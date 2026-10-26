@@ -1,152 +1,135 @@
 """
 ====================================================================
-FASAL SURAKSHA - utils/pmfby_verifier.py
-Pradhan Mantri Fasal Bima Yojana (PMFBY) Insurance Evidence Helper.
-Assists insurance survey officers, banks, and claims assessors
-in triaging crop damage claims, cross-verifying geotags,
-estimating financial indemnity, and flags potential fraud or high-risk claims.
+FASAL SURAKSHA - utils/pmfby_verifier.py   (revised)
+Crop-damage EVIDENCE helper for farmers / surveyors.
+
+IMPORTANT - what this module no longer does
+-------------------------------------------
+The previous version computed an "eligibility" verdict and an INR payout
+as  sum_insured x damage%.  That is not how PMFBY works:
+
+* Pest / disease losses are part of the yield-loss cover, settled mainly
+  on an AREA basis for the notified unit (crop-cutting experiments), not
+  from one farmer's leaf photo.
+* Individual-farm assessment applies only to localized calamities
+  (hailstorm, landslide, inundation, cloud burst, natural fire) and
+  post-harvest losses.
+* Sums insured come from state-level scale-of-finance notifications,
+  not from a hardcoded table.
+
+So this module now only (a) organises photo / severity evidence, (b)
+reports how complete that evidence is, and (c) points the farmer to the
+right reporting channel.  It never states eligibility or a payout.
+Check pmfby.gov.in and the current Operational Guidelines for rules.
+
+`verify_pmfby_claim()` keeps its old name and arguments so existing
+callers keep working.  Legacy keys `is_claim_eligible` and
+`estimated_indemnity_payout_inr` are now None - update any UI code that
+formats them (e.g. f"{x:,.2f}") to handle None / remove them.
 ====================================================================
 """
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
-import math
-from typing import Dict, Any, Optional
-from datetime import datetime
-try:
-    from loguru import logger
-except (ImportError, ModuleNotFoundError):
-    import logging
-    logger = logging.getLogger("fasal_suraksha")
+from loguru import logger
 
-# PMFBY Operational Guidelines thresholds
-MINIMUM_LOSS_CLAIM_THRESHOLD = 20.0  # PMFBY localized calamity threshold (20% loss minimum)
-HIGH_PRIORITY_SEVERITY_THRESHOLD = 50.0  # Immediate on-site verification triggered
+# Follow-up priority is about field-visit / advisory urgency only.
+HIGH_SEVERITY = 50.0
+MODERATE_SEVERITY = 20.0
+LOW_CONFIDENCE = 60.0
 
-# Baseline sum insured per acre (INR) based on State Level Coordination Committee on Crop Insurance (SLCCCI)
-CROP_SUM_INSURED_PER_ACRE: Dict[str, float] = {
-    "Paddy": 42000.0,
-    "Rice": 42000.0,
-    "Wheat": 38000.0,
-    "Tomato": 65000.0,
-    "Potato": 75000.0,
-    "Corn": 30000.0,
-    "Maize": 30000.0,
-    "Soybean": 32000.0,
-    "Cotton": 45000.0,
-    "Default": 35000.0
-}
+INSURANCE_GUIDANCE_EN = (
+    "Crop insurance is settled under the scheme's own rules, not by this app. "
+    "Contact your insurance company, bank branch or local Agriculture Office, and see pmfby.gov.in "
+    "for the current guidelines and claim-intimation timelines. For localized calamities such as "
+    "hailstorm, landslide, inundation, cloud burst or natural fire, report quickly "
+    "(the scheme sets short intimation windows)."
+)
+INSURANCE_GUIDANCE_HI = (
+    "फसल बीमा के दावे योजना के नियमों के अनुसार तय होते हैं, इस ऐप से नहीं। "
+    "अपनी बीमा कंपनी, बैंक शाखा या कृषि कार्यालय से संपर्क करें और pmfby.gov.in देखें।"
+)
 
 
 def verify_pmfby_claim(
     disease_name: str,
     severity_percent: float,
-    predicted_yield_loss_percent: float,
+    predicted_yield_loss_percent: Optional[float] = None,
     farm_area_acres: float = 2.0,
     crop_name: str = "Tomato",
     farmer_id: Optional[str] = None,
     claim_id: Optional[str] = None,
     gps_lat: Optional[float] = None,
     gps_lon: Optional[float] = None,
-    survey_date: Optional[str] = None
+    survey_date: Optional[str] = None,
+    model_confidence_percent: Optional[float] = None,
+    photo_count: int = 1,
 ) -> Dict[str, Any]:
-    """
-    Evaluates submitted crop diagnostic evidence against PMFBY localized calamity norms.
+    """Build an evidence record. Does NOT decide eligibility or payout."""
+    now = datetime.now(timezone.utc)
+    geo_provided = gps_lat is not None and gps_lon is not None
 
-    Parameters:
-        disease_name: Detected pathology
-        severity_percent: Surface area lesion index
-        predicted_yield_loss_percent: Projected yield deficit from Tabular ML
-        farm_area_acres: Insured land holding in acres
-        crop_name: Insured commodity
-        farmer_id: Unique identification (e.g., Aadhaar / KCC / PMFBY ID)
-        claim_id: Claim token
-        gps_lat, gps_lon: Field survey coordinates
-        survey_date: Date of capture
+    # ---- evidence completeness ------------------------------------
+    missing: List[str] = []
+    if not geo_provided:
+        missing.append("GPS location (field photos should be geotagged)")
+    if not farmer_id:
+        missing.append("Farmer / insurance ID")
+    if not survey_date:
+        missing.append("Survey date")
+    if photo_count < 3:
+        missing.append("At least 3 photos (leaf close-up, plant, whole field)")
+    if model_confidence_percent is not None and model_confidence_percent < LOW_CONFIDENCE:
+        missing.append("Clearer photo or expert confirmation (low AI confidence)")
+    evidence_status = "COMPLETE" if not missing else "INCOMPLETE"
 
-    Returns:
-        Structured PMFBY claim adjudication and priority assessment.
-    """
-    clean_crop = "Default"
-    for k in CROP_SUM_INSURED_PER_ACRE.keys():
-        if k.lower() in crop_name.lower():
-            clean_crop = k
-            break
-
-    sum_insured_per_acre = CROP_SUM_INSURED_PER_ACRE.get(clean_crop, 35000.0)
-    total_sum_insured = round(sum_insured_per_acre * farm_area_acres, 2)
-
-    # Effective Damage Ratio combines leaf pathology severity and forecasted harvest reduction
-    # PMFBY localized calamity formula blends empirical field loss and standard cut-off
-    effective_damage_percent = min(100.0, max(severity_percent, predicted_yield_loss_percent))
-
-    # Calculate Estimated Payout according to PMFBY norms:
-    # Indemnity Payable = Total Sum Insured * (Percentage Damage / 100)
-    if effective_damage_percent >= MINIMUM_LOSS_CLAIM_THRESHOLD:
-        eligible_for_claim = True
-        estimated_payout_inr = round(total_sum_insured * (effective_damage_percent / 100.0), 2)
+    # ---- follow-up priority (advisory / field-visit urgency) --------
+    if severity_percent >= HIGH_SEVERITY:
+        priority, color, queue = "HIGH - arrange field visit / expert advice soon", "red", "Urgent field visit"
+    elif severity_percent >= MODERATE_SEVERITY:
+        priority, color, queue = "MEDIUM - treat now and document progress", "orange", "Advisory + documentation"
     else:
-        eligible_for_claim = False
-        estimated_payout_inr = 0.0
+        priority, color, queue = "LOW - monitor and treat early", "green", "Advisory only"
 
-    # Claims Triage Classification
-    # Priority 1: Red (Immediate physical inspection required)
-    # Priority 2: Orange (Fast-track desk audit with drone/satellite cross-ref)
-    # Priority 3: Green (Automated micro-settlement eligible or rejected)
-    if effective_damage_percent >= HIGH_PRIORITY_SEVERITY_THRESHOLD:
-        triage_status = "TIER-1: IMMEDIATE ON-FIELD AUDIT REQUIRED (उच्च प्राथमिकता)"
-        inspection_recommendation = (
-            "Severe localized infection detected. Immediate physical audit within 48 hours "
-            "recommended by PMFBY surveyor before total foliage loss occurs."
-        )
-        risk_color = "red"
-        audit_queue = "Urgent Physical Verification"
-    elif effective_damage_percent >= MINIMUM_LOSS_CLAIM_THRESHOLD:
-        triage_status = "TIER-2: FAST-TRACK DIGITAL ADJUDICATION (मध्यम प्राथमिकता)"
-        inspection_recommendation = (
-            "Damage crosses 20% PMFBY statutory threshold. Eligible for algorithmic appraisal "
-            "cross-verified against block-level Automatic Weather Station (AWS) rainfall logs."
-        )
-        risk_color = "orange"
-        audit_queue = "Satellite / Weather Cross-Check"
-    else:
-        triage_status = "TIER-3: SUB-THRESHOLD / INADMISSIBLE (अमान्य / सामान्य)"
-        inspection_recommendation = (
-            "Foliage damage index is below the 20% localized loss threshold under PMFBY guidelines. "
-            "Advise corrective agronomic treatment; claim currently not eligible for insurance indemnity."
-        )
-        risk_color = "green"
-        audit_queue = "Desk Close / Advisory Dispatch"
-
-    # Geolocation / Timestamp integrity check
-    geo_verified = True if (gps_lat is not None and gps_lon is not None) else False
-    current_ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    recommendation = (
+        "Record dated, geotagged photos of the affected leaves, plants and whole field before and after treatment. "
+        "Keep input purchase bills. Report to the insurer / bank / Agriculture Office through the official channel. "
+        "This app's severity number is an estimate from one leaf image and is not a loss assessment."
+    )
 
     result = {
-        "claim_id": claim_id or f"PMFBY-{datetime.now().strftime('%Y%m%d')}-{int(abs(hash(disease_name))) % 10000:04d}",
-        "farmer_id": farmer_id or "KCC-FMR-98214",
+        "claim_id": claim_id or f"EVD-{now.strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}",
+        "farmer_id": farmer_id,  # None if not provided - never invented
         "crop_name": crop_name,
         "disease_detected": disease_name,
         "farm_area_acres": farm_area_acres,
-        "sum_insured_per_acre_inr": sum_insured_per_acre,
-        "total_sum_insured_inr": total_sum_insured,
-        "leaf_severity_percent": round(severity_percent, 2),
-        "predicted_yield_loss_percent": round(predicted_yield_loss_percent, 2),
-        "effective_damage_percent": round(effective_damage_percent, 2),
-        "pmfby_minimum_threshold_percent": MINIMUM_LOSS_CLAIM_THRESHOLD,
-        "is_claim_eligible": eligible_for_claim,
-        "estimated_indemnity_payout_inr": estimated_payout_inr,
-        "triage_priority": triage_status,
-        "risk_badge_color": risk_color,
-        "audit_queue": audit_queue,
-        "surveyor_recommendation": inspection_recommendation,
+        "leaf_severity_percent": round(float(severity_percent), 2),
+        "predicted_yield_loss_percent": None if predicted_yield_loss_percent is None else round(float(predicted_yield_loss_percent), 2),
+        "model_confidence_percent": model_confidence_percent,
+        "evidence_status": evidence_status,
+        "evidence_missing": missing,
+        "follow_up_priority": priority,
+        "risk_badge_color": color,
+        "audit_queue": queue,
+        "surveyor_recommendation": recommendation,
+        "insurance_guidance_en": INSURANCE_GUIDANCE_EN,
+        "insurance_guidance_hi": INSURANCE_GUIDANCE_HI,
         "audit_metadata": {
-            "evaluation_timestamp": current_ts,
-            "survey_date": survey_date or datetime.now().strftime("%Y-%m-%d"),
-            "geo_coordinates": f"{gps_lat:.5f}, {gps_lon:.5f}" if geo_verified else "Field Upload (Pending Geotag)",
-            "geo_verified": geo_verified,
-            "tamper_evidence_score": 0.96, # Visual artifact integrity index
-            "scheme_reference": "PMFBY Operational Guidelines Rev 2024 - Localized Calamities & Post-Harvest Losses"
-        }
+            "evaluation_timestamp": now.strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "survey_date": survey_date,
+            "geo_coordinates": f"{gps_lat:.5f}, {gps_lon:.5f}" if geo_provided else None,
+            "geo_provided": geo_provided,  # coordinates were supplied; NOT independently verified
+            "image_integrity_checked": False,
+        },
+        # ---- legacy keys, intentionally neutral -----------------------
+        "is_claim_eligible": None,
+        "estimated_indemnity_payout_inr": None,
+        "triage_priority": priority,
     }
-
-    logger.info(f"PMFBY audit completed: Claim={result['claim_id']} | Triage={triage_status} | Payout=INR {estimated_payout_inr}")
+    logger.info(f"Evidence record {result['claim_id']}: status={evidence_status}, priority={color}")
     return result
+
+
+# Clearer alias for new code
+build_evidence_report = verify_pmfby_claim

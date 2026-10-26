@@ -285,9 +285,9 @@ async def whatsapp_webhook(
             f"🌱 *जैविक उपचार (Organic Remedy):*\n"
             f"*{org['name_hi']}*\n"
             f"मात्रा: {org['concentration_per_liter']}\n\n"
-            f"🛡️ *PMFBY फसल बीमा दावा (Insurance Triage):*\n"
-            f"दावा स्थिति: *{pmfby['triage_priority'].split('(')[0]}*\n"
-            f"अनुमानित क्षतिपूर्ति: *INR {pmfby['estimated_indemnity_payout_inr']:,.2f}*\n"
+            f"🛡️ *PMFBY फसल बीमा साक्ष्य (Insurance Evidence):*\n"
+            f"प्राथमिकता: *{pmfby.get('follow_up_priority', pmfby.get('triage_priority', 'Advisory')).split('(')[0].split('-')[0].strip()}*\n"
+            f"साक्ष्य स्थिति: *{pmfby.get('evidence_status', 'INCOMPLETE')}*\n"
             f"────────────────────\n"
             f"_अधिक जानकारी के लिए नजदीकी कृषि विज्ञान केंद्र (KVK) से संपर्क करें।_"
         )
