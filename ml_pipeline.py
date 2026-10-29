@@ -120,7 +120,10 @@ def classify_foliar_morphology(
         "Squash": 0.0,
         "Strawberry": 0.0,
         "Raspberry": 0.0,
-        "Soybean": 0.0
+        "Soybean": 0.0,
+        "Mango": 0.0,
+        "Guava": 0.0,
+        "Lemon": 0.0
     }
 
     # 1. Grape Leaf:
@@ -174,6 +177,18 @@ def classify_foliar_morphology(
     # 6. Squash / Cucurbits (Broad pentagonal/palmate leaf):
     if deep_sinuses >= 1 and aspect_ratio <= 1.35 and 0.50 <= solidity <= 0.82:
         morph_scores["Squash"] += 50.0
+
+    # 7. Mango (Lanceolate elongated leathery leaf):
+    if 2.2 <= aspect_ratio <= 5.0 and solidity >= 0.82 and deep_sinuses <= 1 and sig_leaflets <= 2:
+        morph_scores["Mango"] += 65.0
+
+    # 8. Guava (Elliptic/oblong leaf with prominent pinnate venation):
+    if 1.35 <= aspect_ratio <= 2.25 and solidity >= 0.83 and deep_sinuses <= 1 and sig_leaflets <= 2:
+        morph_scores["Guava"] += 50.0
+
+    # 9. Lemon (Ovate citrus blade with winged petiole):
+    if 1.30 <= aspect_ratio <= 2.05 and solidity >= 0.80 and deep_sinuses <= 1 and sig_leaflets <= 2:
+        morph_scores["Lemon"] += 45.0
 
     # Neural probability integration
     neural_scores = {k: 0.0 for k in morph_scores}
@@ -245,6 +260,24 @@ def classify_foliar_morphology(
                     cand = [i for i, cl in enumerate(classes) if "Tomato___Late_blight" in cl]
                 else:
                     cand = [i for i, cl in enumerate(classes) if "Tomato___Early_blight" in cl]
+                final_idx = cand[0] if cand else diseased_idx[0]
+            elif winning_crop == "Mango":
+                if severity_pct > 12.0:
+                    cand = [i for i, cl in enumerate(classes) if "Mango___Anthracnose" in cl]
+                else:
+                    cand = [i for i, cl in enumerate(classes) if "Mango___Bacterial_canker" in cl]
+                final_idx = cand[0] if cand else diseased_idx[0]
+            elif winning_crop == "Guava":
+                if severity_pct > 12.0:
+                    cand = [i for i, cl in enumerate(classes) if "Guava___Anthracnose" in cl]
+                else:
+                    cand = [i for i, cl in enumerate(classes) if "Guava___Canker" in cl]
+                final_idx = cand[0] if cand else diseased_idx[0]
+            elif winning_crop == "Lemon":
+                if severity_pct > 10.0:
+                    cand = [i for i, cl in enumerate(classes) if "Lemon___Dieback" in cl]
+                else:
+                    cand = [i for i, cl in enumerate(classes) if "Lemon___Citrus_canker" in cl]
                 final_idx = cand[0] if cand else diseased_idx[0]
             else:
                 final_idx = diseased_idx[0]
@@ -466,6 +499,12 @@ class FasalSurakshaPipeline:
                     clean_crop = "raspberry"
                 elif "soybean" in clean_crop:
                     clean_crop = "soybean"
+                elif "mango" in clean_crop:
+                    clean_crop = "mango"
+                elif "guava" in clean_crop:
+                    clean_crop = "guava"
+                elif "lemon" in clean_crop or "lime" in clean_crop:
+                    clean_crop = "lemon"
 
                 crop_indices = [
                     i for i, c in enumerate(self.classes)

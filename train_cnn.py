@@ -80,7 +80,19 @@ CROP_DISEASE_CLASSES = [
     "Wheat___healthy",
     # Cotton
     "Cotton___Bacterial_Blight",
-    "Cotton___healthy"
+    "Cotton___healthy",
+    # Mango
+    "Mango___Anthracnose",
+    "Mango___Bacterial_canker",
+    "Mango___healthy",
+    # Guava
+    "Guava___Canker",
+    "Guava___Anthracnose",
+    "Guava___healthy",
+    # Lemon
+    "Lemon___Citrus_canker",
+    "Lemon___Dieback",
+    "Lemon___healthy"
 ]
 
 

@@ -79,7 +79,7 @@
 
 ```text
 FASAL SURAKSHA/
-├── dataset/                         # 28 Mounted Field Pathology Datasets (44,291 Real Photos)
+├── dataset/                         # 37 Mounted Field Pathology Datasets (44,500+ Real Photos)
 │   ├── Corn_(maize)___Northern_Leaf_Blight/ (417 imgs)
 │   ├── Grape___Black_rot/ (1,180 imgs), Esca, Leaf Blight, Healthy
 │   ├── Orange___Haunglongbing_(Citrus_greening)/ (5,507 imgs)
@@ -90,11 +90,14 @@ FASAL SURAKSHA/
 │   ├── Soybean___healthy/ (5,090 imgs)
 │   ├── Squash___Powdery_mildew/ (1,835 imgs)
 │   ├── Strawberry___Leaf_scorch/, Healthy (1,565 imgs)
+│   ├── Mango___Anthracnose/, Bacterial_canker, Healthy
+│   ├── Guava___Canker/, Anthracnose, Healthy
+│   ├── Lemon___Citrus_canker/, Dieback, Healthy
 │   └── Tomato___Bacterial_spot, Early/Late blight, Spider mites, Leaf Mold, Mosaic, TYLCV (16,000+ imgs)
 ├── models/
 │   ├── fasal_suraksha_cnn.onnx      # Cross-platform ONNX classifier
 │   ├── fasal_suraksha_quant.tflite  # INT8/FP16 Quantized edge model (<20MB)
-│   ├── fasal_suraksha_mobilenet.pth # Fine-tuned PyTorch model weights (45 classes) with Grad-CAM hooks
+│   ├── fasal_suraksha_mobilenet.pth # Fine-tuned PyTorch model weights (54 classes) with Grad-CAM hooks
 │   └── yield_xgboost.pkl            # XGBoost Regressor bundle
 ├── utils/
 │   ├── segmentation.py              # OpenCV background subtraction & DSI index
@@ -102,7 +105,7 @@ FASAL SURAKSHA/
 │   ├── dosage_calculator.py         # ICAR remedy & dynamic dosage calculator
 │   ├── pmfby_verifier.py            # PMFBY insurance claim triage & indemnity
 │   └── pdf_generator.py             # 1-Page Crop Health Card PDF generator
-├── train_cnn.py                     # MobileNetV3 training & ONNX export script (supports all 45 classes)
+├── train_cnn.py                     # MobileNetV3 training & ONNX export script (supports all 54 classes)
 ├── quantize.py                      # TFLite post-training quantization (<20MB)
 ├── train_yield.py                   # XGBoost yield regressor training script
 ├── ml_pipeline.py                   # Unified standardized inference pipeline

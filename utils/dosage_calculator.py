@@ -593,6 +593,150 @@ DISEASE_REMEDY_DATABASE: Dict[str, Dict[str, Any]] = {
         "safety_instructions_en": "10 days pre-harvest interval before picking bell peppers.",
         "safety_instructions_hi": "शिमला मिर्च तोड़ने से 10 दिन पूर्व छिड़काव बंद करें।"
     },
+    "Mango_Anthracnose": {
+        "crop": "Mango",
+        "disease_name_en": "Mango Anthracnose (Leaf Blight & Black Spot)",
+        "disease_name_hi": "आम का एन्थ्रेक्नोज़ / काला धब्बा रोग (Anthracnose)",
+        "causal_organism": "Colletotrichum gloeosporioides (Fungus)",
+        "organic_remedy": {
+            "name_en": "Copper Oxychloride 50% WP (3.0 g/L) + Trichoderma viride",
+            "name_hi": "कॉपर ऑक्सीक्लोराइड 50% डब्ल्यूपी + ट्राइकोडर्मा विरिडे",
+            "base_ratio_ml_per_liter": 3.0,
+            "application_interval_days": 10,
+            "instructions_en": "Spray foliage thoroughly at first appearance of circular or irregular dark brown to black spots. Repeat during rainy/humid weather.",
+            "instructions_hi": "पत्तियों पर काले-भूरे धब्बे दिखते ही छिड़काव करें। बारिश और उच्च आर्द्रता में दोबारा छिड़कें।"
+        },
+        "chemical_remedy": {
+            "name_en": "Carbendazim 50% WP (Bavistin, 1.0 g/L) or Azoxystrobin 23% SC (1.0 mL/L)",
+            "name_hi": "कार्बेन्डाजिम 50% डब्ल्यूपी (बाविस्टिन, 1 ग्राम/ली) अथवा एज़ोक्सीस्ट्रोबिन 23% एससी",
+            "base_ratio_ml_per_liter": 1.0,
+            "application_interval_days": 14,
+            "instructions_en": "Systemic fungicide spray at flowering and leaf flush stages to prevent blossom blight and foliage drop.",
+            "instructions_hi": "फूल आने और नई पत्तियां निकलने पर प्रणालीगत कवकनाशी का छिड़काव करें।"
+        },
+        "safety_instructions_en": "Observe 14-day pre-harvest interval. Avoid spraying during peak honeybee pollinator activity.",
+        "safety_instructions_hi": "तुड़ाई से 14 दिन पूर्व छिड़काव रोकें। परागण के समय मधुमक्खियों के बचाव हेतु दोपहर में छिड़काव न करें।"
+    },
+    "Mango_Bacterial_canker": {
+        "crop": "Mango",
+        "disease_name_en": "Mango Bacterial Canker / Black Spot",
+        "disease_name_hi": "आम का जीवाणु कैंकर / ब्लैक स्पॉट (Bacterial Canker)",
+        "causal_organism": "Xanthomonas campestris pv. mangiferaeindicae (Bacterium)",
+        "organic_remedy": {
+            "name_en": "Pseudomonas fluorescens (5 g/L) + Neem Oil 10,000 PPM",
+            "name_hi": "स्यूडोमोनास फ्लोरोसेंस (5 ग्राम/ली) + नीम तेल 10,000 पीपीएम",
+            "base_ratio_ml_per_liter": 4.0,
+            "application_interval_days": 8,
+            "instructions_en": "Spray on leaves showing water-soaked angular lesions. Disinfect pruning shears to prevent mechanical transmission.",
+            "instructions_hi": "पानी जैसे कोणीय धब्बों पर छिड़कें। रोग फैलने से रोकने हेतु छंटाई वाले औजारों को विसंक्रमित करें।"
+        },
+        "chemical_remedy": {
+            "name_en": "Streptocycline (1 g/10 L) + Copper Oxychloride 50% WP (3.0 g/L)",
+            "name_hi": "स्ट्रेप्टोसाइक्लिन (1 ग्राम प्रति 10 लीटर) + कॉपर ऑक्सीक्लोराइड 50% डब्ल्यूपी",
+            "base_ratio_ml_per_liter": 2.5,
+            "application_interval_days": 12,
+            "instructions_en": "Apply bactericide tank mix at first sign of angular black lesions with yellow halos on foliage and twigs.",
+            "instructions_hi": "पीले घेरे वाले काले धब्बे दिखते ही जीवाणुनाशक घोल का अच्छी तरह छिड़काव करें।"
+        },
+        "safety_instructions_en": "Do not exceed recommended antibiotic concentration. Wear protective mask and gloves.",
+        "safety_instructions_hi": "एंटीबायोटिक की अनुशंसित मात्रा से अधिक न डालें। मास्क और दस्ताने पहनें।"
+    },
+    "Guava_Canker": {
+        "crop": "Guava",
+        "disease_name_en": "Guava Canker & Scab",
+        "disease_name_hi": "अमरूद का कैंकर एवं खुरंड रोग (Guava Canker)",
+        "causal_organism": "Pestalotiopsis psidii (Fungus)",
+        "organic_remedy": {
+            "name_en": "Bordeaux Mixture (1%) or Copper Hydroxide 53.8% DF",
+            "name_hi": "बोर्डो मिश्रण (1%) अथवा कॉपर हाइड्रॉक्साइड 53.8%",
+            "base_ratio_ml_per_liter": 3.0,
+            "application_interval_days": 10,
+            "instructions_en": "Spray immediately after winter pruning and during high monsoon humidity to protect young leaves and shoots.",
+            "instructions_hi": "सर्दियों की छंटाई के बाद और मानसूनी नमी में नई कोपलों और पत्तियों पर छिड़कें।"
+        },
+        "chemical_remedy": {
+            "name_en": "Copper Oxychloride 50% WP (Blitox 50, 3.0 g/L) or Difenoconazole 25% EC (0.5 mL/L)",
+            "name_hi": "कॉपर ऑक्सीक्लोराइड 50% डब्ल्यूपी (3 ग्राम/ली) अथवा डिफेनोकोनाज़ोल 25% ईसी",
+            "base_ratio_ml_per_liter": 2.0,
+            "application_interval_days": 14,
+            "instructions_en": "Apply when angular brown corky necrotic pustules appear on leaves or fruit stems.",
+            "instructions_hi": "पत्तियों पर भूरे रंग के उभरे हुए कैंकर धब्बे दिखने पर तुरंत छिड़काव करें।"
+        },
+        "safety_instructions_en": "Wait 15 days before harvesting guava fruits for fresh consumption.",
+        "safety_instructions_hi": "ताजा अमरूद तोड़ने से 15 दिन पूर्व छिड़काव बंद कर दें।"
+    },
+    "Guava_Anthracnose": {
+        "crop": "Guava",
+        "disease_name_en": "Guava Anthracnose / Dieback",
+        "disease_name_hi": "अमरूद का एन्थ्रेक्नोज़ / टहनी सूखा रोग (Guava Anthracnose)",
+        "causal_organism": "Colletotrichum gloeosporioides (Fungus)",
+        "organic_remedy": {
+            "name_en": "Neem Oil 10,000 PPM + Trichoderma harzianum (4 g/L)",
+            "name_hi": "नीम का तेल 10,000 पीपीएम + ट्राइकोडर्मा हरज़ियानम",
+            "base_ratio_ml_per_liter": 3.5,
+            "application_interval_days": 8,
+            "instructions_en": "Spray on leaves showing pinhead necrotic specks. Prune and burn dried infected twigs.",
+            "instructions_hi": "पत्तियों पर भूरे धब्बे दिखने पर छिड़कें। सूखी टहनियों को काटकर नष्ट करें।"
+        },
+        "chemical_remedy": {
+            "name_en": "Mancozeb 75% WP (Dithane M-45, 2.5 g/L) or Chlorothalonil 75% WP (2 g/L)",
+            "name_hi": "मैंकोजेब 75% डब्ल्यूपी (डाइथेन एम-45, 2.5 ग्राम/ली) अथवा क्लोरोथैलोनिल 75% डब्ल्यूपी",
+            "base_ratio_ml_per_liter": 2.5,
+            "application_interval_days": 12,
+            "instructions_en": "Apply prophylactic spray before onset of monsoon rains and repeat at fruit set stage.",
+            "instructions_hi": "मानसून से पहले बचाव हेतु छिड़काव करें और फल बनने के समय दोहराएं।"
+        },
+        "safety_instructions_en": "Wear eye protection and avoid skin contact. 12-day pre-harvest waiting period.",
+        "safety_instructions_hi": "आंखों व त्वचा को बचाएं। फल तोड़ने से 12 दिन पहले छिड़काव न करें।"
+    },
+    "Lemon_Citrus_canker": {
+        "crop": "Lemon (Citrus)",
+        "disease_name_en": "Citrus Canker",
+        "disease_name_hi": "नींबू का कैंकर रोग (Citrus Canker)",
+        "causal_organism": "Xanthomonas axonopodis pv. citri (Bacterium)",
+        "organic_remedy": {
+            "name_en": "Neem Seed Kernel Extract (NSKE 5%) + Copper Oxychloride (2.5 g/L)",
+            "name_hi": "नीम बीज अर्क (एनएसकेई 5%) + कॉपर ऑक्सीक्लोराइड",
+            "base_ratio_ml_per_liter": 3.0,
+            "application_interval_days": 8,
+            "instructions_en": "Control citrus leaf miner larvae which create entry wounds for canker bacteria. Prune severely infected shoots.",
+            "instructions_hi": "लीफ माइनर कीट को रोकें जो कैंकर जीवाणु के प्रवेश मार्ग बनाते हैं। संक्रमित शाखाएं काटें।"
+        },
+        "chemical_remedy": {
+            "name_en": "Streptocycline (1 g/10 L water) + Copper Oxychloride 50% WP (3 g/L)",
+            "name_hi": "स्ट्रेप्टोसाइक्लिन (1 ग्राम/10 ली पानी) + कॉपर ऑक्सीक्लोराइड 50% डब्ल्यूपी",
+            "base_ratio_ml_per_liter": 2.5,
+            "application_interval_days": 12,
+            "instructions_en": "Apply bactericidal wash when small, raised, blister-like corky lesions with yellow chlorotic halos appear on leaves.",
+            "instructions_hi": "उभरे हुए खुरदरे धब्बे और पीले घेरे दिखते ही जीवाणुनाशक का संपूर्ण छिड़काव करें।"
+        },
+        "safety_instructions_en": "Do not spray during full bloom to safeguard pollinators. 10 days pre-harvest interval.",
+        "safety_instructions_hi": "फूलों के खिलने पर छिड़काव न करें ताकि परागण सुरक्षित रहे। तुड़ाई से 10 दिन पूर्व बंद करें।"
+    },
+    "Lemon_Dieback": {
+        "crop": "Lemon (Citrus)",
+        "disease_name_en": "Lemon Twig Blight / Dieback",
+        "disease_name_hi": "नींबू का डाइबैक / शीर्ण रोग (Lemon Dieback)",
+        "causal_organism": "Colletotrichum gloeosporioides & Diplodia natalensis (Fungi)",
+        "organic_remedy": {
+            "name_en": "Pruning of dried twigs + Bordeaux Paste (10%) on cuts + Trichoderma viride",
+            "name_hi": "सूखी टहनियों की छंटाई + कटे सिरों पर बोर्डो लेप + ट्राइकोडर्मा विरिडे",
+            "base_ratio_ml_per_liter": 3.0,
+            "application_interval_days": 14,
+            "instructions_en": "Cut dried branches 2-3 inches below healthy green tissue. Seal cut ends with Bordeaux paste immediately.",
+            "instructions_hi": "सूखी टहनी को हरे हिस्से से 2-3 इंच नीचे से काटें और तुरंत बोर्डो लेप लगाएं।"
+        },
+        "chemical_remedy": {
+            "name_en": "Carbendazim 12% + Mancozeb 63% WP (Saaf, 2.0 g/L) or Copper Hydroxide (2.5 g/L)",
+            "name_hi": "कार्बेन्डाजिम 12% + मैंकोजेब 63% डब्ल्यूपी (साफ, 2 ग्राम/ली) अथवा कॉपर हाइड्रॉक्साइड",
+            "base_ratio_ml_per_liter": 2.0,
+            "application_interval_days": 14,
+            "instructions_en": "Foliar and branch drenching spray to halt wither-tip progression down the branches.",
+            "instructions_hi": "टहनियों के ऊपर से नीचे की ओर सूखने को रोकने हेतु पत्तियों व शाखाओं पर छिड़काव करें।"
+        },
+        "safety_instructions_en": "14 days waiting period before harvesting lemons. Maintain soil drainage to prevent root hypoxia.",
+        "safety_instructions_hi": "नींबू तुड़ाई से 14 दिन पहले छिड़काव रोकें। जड़ों में जलभराव न होने दें।"
+    },
     "Healthy_Crop": {
         "crop": "Healthy Leaf",
         "disease_name_en": "Healthy Crop - No Infection Detected",
@@ -663,7 +807,13 @@ def calculate_dynamic_dosage(
 
         # 3. Generic fallback for unknown diseases
         if matched_key == "Healthy_Crop" and "healthy" not in disease_key.lower():
-            if "orange" in clean_search or "citrus" in clean_search:
+            if "mango" in clean_search:
+                matched_key = "Mango_Anthracnose"
+            elif "guava" in clean_search:
+                matched_key = "Guava_Canker"
+            elif "lemon" in clean_search or "lime" in clean_search:
+                matched_key = "Lemon_Citrus_canker"
+            elif "orange" in clean_search or "citrus" in clean_search:
                 matched_key = "Orange_Haunglongbing"
             elif "peach" in clean_search:
                 matched_key = "Peach_Bacterial_spot"

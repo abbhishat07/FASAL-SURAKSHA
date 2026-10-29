@@ -1104,7 +1104,13 @@ SAMPLE_FOLDER_MAP = {
     "Soybean Healthy": "dataset/Soybean___healthy",
     "Healthy Crop Leaf": "dataset/Tomato___healthy",
     "Corn Common Rust": "dataset/Corn_(maize)___Common_rust_",
-    "Rice Blast": "dataset/Rice___Leaf_Blast"
+    "Rice Blast": "dataset/Rice___Leaf_Blast",
+    "Mango Anthracnose": "dataset/Mango___Anthracnose",
+    "Mango Bacterial Canker": "dataset/Mango___Bacterial_canker",
+    "Guava Canker": "dataset/Guava___Canker",
+    "Guava Anthracnose": "dataset/Guava___Anthracnose",
+    "Lemon Citrus Canker": "dataset/Lemon___Citrus_canker",
+    "Lemon Dieback": "dataset/Lemon___Dieback"
 }
 
 # Helper to load real photographic crop leaves from pasted datasets with synthetic fallback
@@ -1163,6 +1169,51 @@ def get_sample_leaf(crop_choice: str) -> np.ndarray:
         cv2.fillPoly(img, [np.array(pts, dtype=np.int32)], (45, 155, 45))
         cv2.circle(img, (180, 170), 22, (20, 25, 35), -1)
         cv2.circle(img, (230, 210), 18, (15, 20, 30), -1)
+    elif crop_choice in ["Mango Anthracnose", "Mango Bacterial Canker"]:
+        img[:, :] = [30, 115, 35]
+        # Elongated lanceolate mango leaf blade
+        cv2.ellipse(img, (200, 200), (80, 175), 0, 0, 360, (38, 138, 42), -1)
+        cv2.line(img, (200, 30), (200, 370), (45, 160, 50), 3) # Midrib
+        if "Anthracnose" in crop_choice:
+            # Irregular black necrotic lesions
+            cv2.circle(img, (185, 160), 28, (20, 25, 30), -1)
+            cv2.circle(img, (220, 240), 22, (22, 28, 35), -1)
+            cv2.circle(img, (175, 290), 18, (18, 22, 26), -1)
+        else:
+            # Bacterial canker: angular spots with yellow chlorotic halos
+            for pt in [(170, 150), (225, 190), (180, 260), (215, 310)]:
+                cv2.circle(img, pt, 16, (30, 210, 225), -1) # Yellow halo
+                cv2.circle(img, pt, 9, (15, 20, 25), -1) # Dark center
+    elif crop_choice in ["Guava Canker", "Guava Anthracnose"]:
+        img[:, :] = [35, 130, 40]
+        # Broad elliptic guava leaf blade with pinnate veins
+        cv2.ellipse(img, (200, 200), (120, 165), 0, 0, 360, (45, 155, 52), -1)
+        cv2.line(img, (200, 40), (200, 360), (55, 175, 60), 3)
+        for y_offset in range(90, 320, 45):
+            cv2.line(img, (200, y_offset), (130, y_offset - 25), (50, 165, 55), 2)
+            cv2.line(img, (200, y_offset), (270, y_offset - 25), (50, 165, 55), 2)
+        if "Canker" in crop_choice:
+            # Raised rusty-brown corky pustules
+            for pt in [(160, 150), (240, 180), (170, 240), (230, 280)]:
+                cv2.circle(img, pt, 14, (30, 70, 140), -1)
+                cv2.circle(img, pt, 7, (20, 40, 80), -1)
+        else:
+            cv2.circle(img, (180, 180), 26, (25, 35, 60), -1)
+            cv2.circle(img, (220, 240), 20, (30, 40, 75), -1)
+    elif crop_choice in ["Lemon Citrus Canker", "Lemon Dieback"]:
+        img[:, :] = [28, 135, 38]
+        # Ovate citrus blade with winged petiole
+        cv2.ellipse(img, (200, 190), (110, 150), 0, 0, 360, (38, 160, 48), -1)
+        cv2.ellipse(img, (200, 350), (35, 20), 0, 0, 360, (35, 145, 45), -1) # Winged petiole
+        if "Canker" in crop_choice:
+            # Raised blister-like corky pustules with bright yellow halos
+            for pt in [(160, 150), (230, 170), (180, 220), (225, 270)]:
+                cv2.circle(img, pt, 18, (30, 220, 240), -1) # Yellow halo
+                cv2.circle(img, pt, 10, (40, 80, 130), -1) # Corky brown center
+        else:
+            # Dieback tip blight
+            cv2.ellipse(img, (200, 90), (60, 45), 0, 0, 360, (20, 35, 55), -1)
+            cv2.circle(img, (150, 190), 22, (25, 45, 70), -1)
     else:
         img[:, :] = [30, 140, 30]
         cv2.circle(img, (200, 200), 160, (40, 180, 40), -1)
@@ -1205,6 +1256,12 @@ with left_col:
             "Corn Common Rust": ("Corn (Maize)", "Corn_(maize)___Common_rust_"),
             "Rice Blast": ("Rice", "Rice___Leaf_Blast"),
             "Soybean Healthy": ("Soybean", "Soybean___healthy"),
+            "Mango Anthracnose": ("Mango", "Mango___Anthracnose"),
+            "Mango Bacterial Canker": ("Mango", "Mango___Bacterial_canker"),
+            "Guava Canker": ("Guava", "Guava___Canker"),
+            "Guava Anthracnose": ("Guava", "Guava___Anthracnose"),
+            "Lemon Citrus Canker": ("Lemon", "Lemon___Citrus_canker"),
+            "Lemon Dieback": ("Lemon", "Lemon___Dieback"),
             "Healthy Crop Leaf": ("Tomato", "Tomato___healthy")
         }
 
@@ -1218,6 +1275,9 @@ with left_col:
                     "Potato (आलू)",
                     "Corn / Maize (मक्का)",
                     "Orange / Citrus (संतरा / मौसमी)",
+                    "Lemon / Lime (नींबू)",
+                    "Mango (आम)",
+                    "Guava (अमरूद)",
                     "Peach (आड़ू)",
                     "Squash / Cucurbits (कद्दू / चप्पन कद्दू)",
                     "Strawberry (स्ट्रॉबेरी)",
